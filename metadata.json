@@ -1,0 +1,6 @@
+{
+  "name": "Trusted for Educational Services",
+  "description": "شركة Trusted للخدمات الطلابية والتعليمية – تابعة لمؤسسة بدر حواس. بيت الخبرة الأكاديمي الرائد في إعداد رسائل الماجستير والدكتوراه والبحوث الجامعية والتحليل الإحصائي.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -52,7 +52,7 @@ jobs:
           INPUT_TARGETS: ${{ github.event.inputs.deploy_targets }}
         run: |
           if [ -z "$FIREBASE_SA_JSON" ]; then
-            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT. Generate a JSON key in Firebase Console -> Project Settings -> Service accounts and add it in GitHub -> Settings -> Secrets and variables -> Actions."
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
             exit 1
           fi
 
@@ -64,35 +64,15 @@ jobs:
             try {
               sa = JSON.parse(process.env.FIREBASE_SA_JSON);
             } catch (err) {
-              console.error("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the exact contents of the downloaded Firebase service account JSON file.");
-              process.exit(1);
-            }
-            if (!sa || typeof sa.project_id !== "string" || !sa.project_id.trim() || !sa.private_key || !sa.client_email) {
-              console.error("::error::FIREBASE_SERVICE_ACCOUNT JSON is missing required fields (project_id, client_email, private_key).");
+              console.error("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON.");
               process.exit(1);
             }
             fs.writeFileSync(saPath, JSON.stringify(sa), { mode: 0o600 });
 
-            const resolvedProjectId =
-              (process.env.INPUT_PROJECT_ID || "").trim() ||
-              (process.env.VAR_PROJECT_ID || "").trim() ||
-              sa.project_id.trim();
+            // فرض استخدام مشروعك الصحيح مباشرة
+            const resolvedProjectId = "trusted-edu";
 
-            let targets = (process.env.INPUT_TARGETS || "").trim();
-            if (!targets) {
-              targets = resolvedProjectId === "gen-lang-client-0928391766"
-                ? "hosting,storage,firestore"
-                : "hosting";
-            }
-
-            if (resolvedProjectId !== "gen-lang-client-0928391766" && targets.includes("firestore")) {
-              console.log("::warning::Resolved project (" + resolvedProjectId + ") differs from gen-lang-client-0928391766. Removing firestore target to avoid missing named-database errors; update firebase.json if using a different Firestore database.");
-              targets = targets
-                .split(",")
-                .map((t) => t.trim())
-                .filter((t) => t && t !== "firestore")
-                .join(",") || "hosting";
-            }
+            let targets = (process.env.INPUT_TARGETS || "").trim() || "hosting";
 
             console.log("Resolved Firebase project ID:", resolvedProjectId);
             console.log("Service account client:", sa.client_email);

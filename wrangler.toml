@@ -1,0 +1,40 @@
+# Cloudflare Workers + Static Assets Configuration
+# Deploy with: npm run build && npx wrangler deploy
+name = "trusted-education"
+main = "worker/index.ts"
+compatibility_date = "2026-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+run_worker_first = ["/api/*", "/uploads/*"]
+
+# Cloudflare R2 Storage for uploaded images and researcher audio clips
+# Create bucket: npx wrangler r2 bucket create trusted-education-media
+[[r2_buckets]]
+binding = "MEDIA_BUCKET"
+bucket_name = "trusted-education-media"
+preview_bucket_name = "trusted-education-media-preview"
+
+# Cloudflare KV Storage for CMS content, orders, and password hashes
+# Create namespace: npx wrangler kv namespace create CMS_KV
+# Then replace the id below with the generated namespace ID
+[[kv_namespaces]]
+binding = "CMS_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_YOUR_PREVIEW_KV_NAMESPACE_ID"
+
+[vars]
+ADMIN_EMAIL = "hawasbrothers@gmail.com"
+# Optional custom public domain attached to your R2 bucket (e.g. "https://media.trusted-edu.com")
+R2_PUBLIC_URL = ""
+# Set to "true" if protecting /authr behind Cloudflare Zero Trust Access
+ALLOW_CF_ACCESS = "false"
+
+# Secrets (DO NOT put real secrets in wrangler.toml — configure via `wrangler secret put` or Cloudflare Dashboard):
+#   npx wrangler secret put AUTH_SECRET
+#   npx wrangler secret put ADMIN_PASSWORD
+#   (or npx wrangler secret put ADMIN_PASSWORD_HASH)
+#   npx wrangler secret put GEMINI_API_KEY

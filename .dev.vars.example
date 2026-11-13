@@ -1,0 +1,7 @@
+# Local secrets for `npx wrangler dev` (copy to .dev.vars and never commit .dev.vars)
+AUTH_SECRET=replace-with-a-random-32-char-or-longer-secret
+ADMIN_EMAIL=hawasbrothers@gmail.com
+ADMIN_PASSWORD=replace-with-strong-admin-password
+# Optional PBKDF2 hash instead of plaintext ADMIN_PASSWORD:
+# ADMIN_PASSWORD_HASH=pbkdf2_sha256$100000$<salt>$<hash>
+GEMINI_API_KEY=

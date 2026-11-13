@@ -28,6 +28,7 @@ import {
   Loader2,
   Menu,
   X,
+  KeyRound,
 } from 'lucide-react';
 
 type AdminTab =
@@ -79,6 +80,16 @@ export const AdminPortal: React.FC = () => {
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
     null
   );
+
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [passwordStatus, setPasswordStatus] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+  const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
   // Sync draft when server content loads and user hasn't edited yet
   useEffect(() => {
@@ -185,6 +196,61 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordStatus(null);
+
+    if (!currentPassword || newPassword.length < 8) {
+      setPasswordStatus({
+        type: 'error',
+        message: 'كلمة المرور الجديدة يجب أن تكون 8 أحرف على الأقل.',
+      });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      setPasswordStatus({
+        type: 'error',
+        message: 'كلمة المرور الجديدة وتأكيدها غير متطابقين.',
+      });
+      return;
+    }
+
+    setIsUpdatingPassword(true);
+    try {
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (authToken) headers.Authorization = `Bearer ${authToken}`;
+      const res = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers,
+        credentials: 'include',
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = (await res.json()) as { ok?: boolean; message?: string; error?: string };
+      if (!res.ok) {
+        setPasswordStatus({
+          type: 'error',
+          message: data.error || 'تعذر تحديث كلمة المرور.',
+        });
+      } else {
+        setPasswordStatus({
+          type: 'success',
+          message: data.message || 'تم تحديث كلمة المرور بنجاح.',
+        });
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }
+    } catch {
+      setPasswordStatus({
+        type: 'error',
+        message: 'تعذر الاتصال بالخادم لتحديث كلمة المرور.',
+      });
+    } finally {
+      setIsUpdatingPassword(false);
+    }
+  };
+
   if (isCheckingAuth) {
     return (
       <div className="min-h-screen bg-[#F0F5FA] flex flex-col items-center justify-center gap-3 text-slate-600">
@@ -242,6 +308,17 @@ export const AdminPortal: React.FC = () => {
         </nav>
 
         <div className="p-4 border-t border-slate-100 space-y-2">
+          <button
+            type="button"
+            onClick={() => {
+              setPasswordStatus(null);
+              setPasswordModalOpen(true);
+            }}
+            className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+          >
+            <KeyRound className="w-3.5 h-3.5" />
+            <span>تغيير كلمة المرور</span>
+          </button>
           <button
             type="button"
             onClick={() => navigate('/')}
@@ -371,6 +448,18 @@ export const AdminPortal: React.FC = () => {
               })}
               <button
                 type="button"
+                onClick={() => {
+                  setPasswordStatus(null);
+                  setPasswordModalOpen(true);
+                  setMobileNavOpen(false);
+                }}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 mt-2"
+              >
+                <KeyRound className="w-4 h-4" />
+                <span>تغيير كلمة المرور</span>
+              </button>
+              <button
+                type="button"
                 onClick={handleLogout}
                 className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 mt-2"
               >
@@ -439,6 +528,116 @@ export const AdminPortal: React.FC = () => {
           )}
         </main>
       </div>
+
+      {passwordModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-modal-title"
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-[#2C5F8A]" />
+                <h2 id="password-modal-title" className="text-sm font-extrabold text-[#1A3A5C]">
+                  تغيير كلمة مرور لوحة التحكم
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
+                aria-label="إغلاق"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {passwordStatus && (
+                <div
+                  role="alert"
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    passwordStatus.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-700'
+                  }`}
+                >
+                  {passwordStatus.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <span>{passwordStatus.message}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  كلمة المرور الحالية
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  dir="ltr"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  كلمة المرور الجديدة (8 أحرف على الأقل)
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  dir="ltr"
+                  minLength={8}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  تأكيد كلمة المرور الجديدة
+                </label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  dir="ltr"
+                  minLength={8}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
+                >
+                  إغلاق
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg disabled:opacity-60"
+                >
+                  {isUpdatingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>حفظ كلمة المرور</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

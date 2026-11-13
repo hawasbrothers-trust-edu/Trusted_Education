@@ -12,6 +12,7 @@ import {
 } from './src/utils/cmsHelpers.ts';
 import { validateOrderForm } from './src/utils/academicCalculations.ts';
 import type { SiteContent, StoredOrder } from './src/types/cms.ts';
+import { hashPassword, verifyPassword } from './worker/auth.ts';
 
 dotenv.config();
 
@@ -21,9 +22,18 @@ const UPLOADS_DIR = path.join(process.cwd(), 'public', 'uploads');
 const SITE_CONTENT_FILE = path.join(DATA_DIR, 'site-content.json');
 const ORDERS_FILE = path.join(DATA_DIR, 'orders.json');
 const SECRET_FILE = path.join(DATA_DIR, '.auth-secret');
+const PASSWORD_HASH_FILE = path.join(DATA_DIR, '.admin-password-hash');
 
 const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'hawasbrothers@gmail.com').trim().toLowerCase();
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Rasto%%4444';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD_HASH || process.env.ADMIN_PASSWORD || 'Rasto%%4444';
+
+function getStoredPasswordCredential(): string {
+  if (fs.existsSync(PASSWORD_HASH_FILE)) {
+    const saved = fs.readFileSync(PASSWORD_HASH_FILE, 'utf8').trim();
+    if (saved.length > 0) return saved;
+  }
+  return ADMIN_PASSWORD;
+}
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOADS_DIR, { recursive: true });
@@ -188,16 +198,13 @@ async function startServer() {
   app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src', 'assets', 'images')));
 
   // Authentication Routes
-  app.post('/api/auth/login', (req: Request, res: Response) => {
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
     const body = req.body as { email?: string; password?: string };
     const email = (body.email || '').trim().toLowerCase();
     const password = body.password || '';
 
     const emailMatch = email === ADMIN_EMAIL;
-    const passBuf = Buffer.from(password);
-    const expectedBuf = Buffer.from(ADMIN_PASSWORD);
-    const passMatch =
-      passBuf.length === expectedBuf.length && crypto.timingSafeEqual(passBuf, expectedBuf);
+    const passMatch = await verifyPassword(password, getStoredPasswordCredential());
 
     if (!emailMatch || !passMatch) {
       res.status(401).json({ error: 'بيانات الدخول غير صحيحة. يرجى التحقق من البريد الإلكتروني وكلمة السر.' });
@@ -225,6 +232,27 @@ async function startServer() {
       return;
     }
     res.json({ authenticated: true, email: session.email });
+  });
+
+  app.post('/api/auth/change-password', requireAdmin, async (req: Request, res: Response) => {
+    const body = req.body as { currentPassword?: string; newPassword?: string };
+    const currentPassword = body.currentPassword || '';
+    const newPassword = body.newPassword || '';
+
+    if (!currentPassword || newPassword.length < 8) {
+      res.status(400).json({ error: 'يرجى إدخال كلمة المرور الحالية وكلمة مرور جديدة (8 أحرف على الأقل).' });
+      return;
+    }
+
+    const currentValid = await verifyPassword(currentPassword, getStoredPasswordCredential());
+    if (!currentValid) {
+      res.status(401).json({ error: 'كلمة المرور الحالية غير صحيحة.' });
+      return;
+    }
+
+    const nextHash = await hashPassword(newPassword);
+    fs.writeFileSync(PASSWORD_HASH_FILE, nextHash, 'utf8');
+    res.json({ ok: true, message: 'تم تحديث كلمة المرور وتشفيرها بنجاح.' });
   });
 
   // Public & Admin Site Content Routes

@@ -185,6 +185,7 @@ async function startServer() {
 
   // Serve uploaded images and audio clips directly
   app.use('/uploads', express.static(UPLOADS_DIR));
+  app.use('/src/assets/images', express.static(path.join(process.cwd(), 'src', 'assets', 'images')));
 
   // Authentication Routes
   app.post('/api/auth/login', (req: Request, res: Response) => {

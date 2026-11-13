@@ -1,0 +1,65 @@
+name: Deploy to Firebase Hosting & Rules
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      deploy_targets:
+        description: 'Firebase targets to deploy (e.g. hosting,storage,firestore)'
+        required: true
+        default: 'hosting,storage,firestore'
+        type: choice
+        options:
+          - hosting,storage,firestore
+          - hosting,storage
+          - hosting
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Write Firebase Service Account credentials
+        id: write_sa
+        env:
+          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$FIREBASE_SA_JSON" ]; then
+            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT. Generate a JSON key in Firebase Console -> Project Settings -> Service accounts and add it in GitHub -> Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          printf '%s' "$FIREBASE_SA_JSON" > "$RUNNER_TEMP/firebase-sa.json"
+          chmod 600 "$RUNNER_TEMP/firebase-sa.json"
+
+      - name: Deploy to Firebase
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
+          TARGETS: ${{ github.event.inputs.deploy_targets || 'hosting,storage,firestore' }}
+        run: |
+          npx --yes firebase-tools@latest deploy \
+            --only "$TARGETS" \
+            --project gen-lang-client-0928391766 \
+            --non-interactive
+
+      - name: Cleanup Service Account credentials
+        if: always()
+        run: rm -f "$RUNNER_TEMP/firebase-sa.json"

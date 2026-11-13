@@ -7,6 +7,11 @@ on:
       - master
   workflow_dispatch:
     inputs:
+      project_id:
+        description: 'Firebase Project ID (optional; defaults to FIREBASE_PROJECT_ID var or service account project_id)'
+        required: false
+        default: ''
+        type: string
       deploy_targets:
         description: 'Firebase targets to deploy (e.g. hosting,storage,firestore)'
         required: true
@@ -38,26 +43,75 @@ jobs:
       - name: Build production bundle
         run: npm run build
 
-      - name: Write Firebase Service Account credentials
-        id: write_sa
+      - name: Prepare Firebase credentials & resolve Project ID
+        id: resolve_firebase
         env:
           FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          INPUT_PROJECT_ID: ${{ github.event.inputs.project_id }}
+          VAR_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
+          INPUT_TARGETS: ${{ github.event.inputs.deploy_targets }}
         run: |
           if [ -z "$FIREBASE_SA_JSON" ]; then
             echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT. Generate a JSON key in Firebase Console -> Project Settings -> Service accounts and add it in GitHub -> Settings -> Secrets and variables -> Actions."
             exit 1
           fi
-          printf '%s' "$FIREBASE_SA_JSON" > "$RUNNER_TEMP/firebase-sa.json"
-          chmod 600 "$RUNNER_TEMP/firebase-sa.json"
+
+          node -e '
+            const fs = require("fs");
+            const path = require("path");
+            const saPath = path.join(process.env.RUNNER_TEMP, "firebase-sa.json");
+            let sa;
+            try {
+              sa = JSON.parse(process.env.FIREBASE_SA_JSON);
+            } catch (err) {
+              console.error("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON. Paste the exact contents of the downloaded Firebase service account JSON file.");
+              process.exit(1);
+            }
+            if (!sa || typeof sa.project_id !== "string" || !sa.project_id.trim() || !sa.private_key || !sa.client_email) {
+              console.error("::error::FIREBASE_SERVICE_ACCOUNT JSON is missing required fields (project_id, client_email, private_key).");
+              process.exit(1);
+            }
+            fs.writeFileSync(saPath, JSON.stringify(sa), { mode: 0o600 });
+
+            const resolvedProjectId =
+              (process.env.INPUT_PROJECT_ID || "").trim() ||
+              (process.env.VAR_PROJECT_ID || "").trim() ||
+              sa.project_id.trim();
+
+            let targets = (process.env.INPUT_TARGETS || "").trim();
+            if (!targets) {
+              targets = resolvedProjectId === "gen-lang-client-0928391766"
+                ? "hosting,storage,firestore"
+                : "hosting";
+            }
+
+            if (resolvedProjectId !== "gen-lang-client-0928391766" && targets.includes("firestore")) {
+              console.log("::warning::Resolved project (" + resolvedProjectId + ") differs from gen-lang-client-0928391766. Removing firestore target to avoid missing named-database errors; update firebase.json if using a different Firestore database.");
+              targets = targets
+                .split(",")
+                .map((t) => t.trim())
+                .filter((t) => t && t !== "firestore")
+                .join(",") || "hosting";
+            }
+
+            console.log("Resolved Firebase project ID:", resolvedProjectId);
+            console.log("Service account client:", sa.client_email);
+            console.log("Deploy targets:", targets);
+
+            const out = process.env.GITHUB_OUTPUT;
+            fs.appendFileSync(out, `project_id=${resolvedProjectId}\n`);
+            fs.appendFileSync(out, `targets=${targets}\n`);
+          '
 
       - name: Deploy to Firebase
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
-          TARGETS: ${{ github.event.inputs.deploy_targets || 'hosting,storage,firestore' }}
+          TARGET_PROJECT_ID: ${{ steps.resolve_firebase.outputs.project_id }}
+          TARGETS: ${{ steps.resolve_firebase.outputs.targets }}
         run: |
           npx --yes firebase-tools@latest deploy \
             --only "$TARGETS" \
-            --project gen-lang-client-0928391766 \
+            --project "$TARGET_PROJECT_ID" \
             --non-interactive
 
       - name: Cleanup Service Account credentials

@@ -43,6 +43,13 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        setError('هذه النسخة تعمل على استضافة Firebase الثابتة — يرجى الدخول عبر زر «تسجيل الدخول بحساب Google (Firebase)» أعلاه.');
+        setIsLoading(false);
+        return;
+      }
+
       const data = (await res.json()) as {
         authenticated?: boolean;
         email?: string;

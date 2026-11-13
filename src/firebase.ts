@@ -90,30 +90,46 @@ async function testConnection() {
 }
 testConnection();
 
+function stripUndefinedDeep<T>(value: T): T {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripUndefinedDeep(item)) as unknown as T;
+  }
+  if (value !== null && typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+      if (v !== undefined) {
+        out[k] = stripUndefinedDeep(v);
+      }
+    }
+    return out as T;
+  }
+  return value;
+}
+
 /**
  * Build a strictly allowlisted & bounded SiteContent payload matching firestore.rules
  */
 export function buildFirestoreSiteContentPayload(content: SiteContent, uid: string) {
   return {
-    brand: content.brand,
-    contact: content.contact,
-    hero: content.hero,
-    stats: content.stats.slice(0, 20),
-    servicesSection: content.servicesSection,
-    services: content.services.slice(0, 50),
-    workflowSection: content.workflowSection,
-    workflowSteps: content.workflowSteps.slice(0, 20),
-    aboutSection: content.aboutSection,
-    testimonialsSection: content.testimonialsSection,
-    testimonials: content.testimonials.slice(0, 100),
-    orderFormSection: content.orderFormSection,
-    blogSection: content.blogSection,
-    articles: content.articles.slice(0, 100),
-    faqSection: content.faqSection,
-    faqs: content.faqs.slice(0, 100),
-    contactSection: content.contactSection,
-    privacyPolicy: content.privacyPolicy,
-    footer: content.footer,
+    brand: stripUndefinedDeep(content.brand),
+    contact: stripUndefinedDeep(content.contact),
+    hero: stripUndefinedDeep(content.hero),
+    stats: stripUndefinedDeep(content.stats.slice(0, 20)),
+    servicesSection: stripUndefinedDeep(content.servicesSection),
+    services: stripUndefinedDeep(content.services.slice(0, 50)),
+    workflowSection: stripUndefinedDeep(content.workflowSection),
+    workflowSteps: stripUndefinedDeep(content.workflowSteps.slice(0, 20)),
+    aboutSection: stripUndefinedDeep(content.aboutSection),
+    testimonialsSection: stripUndefinedDeep(content.testimonialsSection),
+    testimonials: stripUndefinedDeep(content.testimonials.slice(0, 100)),
+    orderFormSection: stripUndefinedDeep(content.orderFormSection),
+    blogSection: stripUndefinedDeep(content.blogSection),
+    articles: stripUndefinedDeep(content.articles.slice(0, 100)),
+    faqSection: stripUndefinedDeep(content.faqSection),
+    faqs: stripUndefinedDeep(content.faqs.slice(0, 100)),
+    contactSection: stripUndefinedDeep(content.contactSection),
+    privacyPolicy: stripUndefinedDeep(content.privacyPolicy),
+    footer: stripUndefinedDeep(content.footer),
     updatedAt: serverTimestamp(),
     updatedBy: uid.slice(0, 128),
   };

@@ -372,7 +372,8 @@ async function startServer() {
   });
 
   // Vite / Static SPA serving
-  if (process.env.NODE_ENV !== 'production') {
+  const isProduction = process.env.NODE_ENV === 'production' || Boolean(process.env.K_SERVICE);
+  if (!isProduction) {
     const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },

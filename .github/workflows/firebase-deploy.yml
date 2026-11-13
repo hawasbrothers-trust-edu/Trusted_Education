@@ -6,28 +6,10 @@ on:
       - main
       - master
   workflow_dispatch:
-    inputs:
-      project_id:
-        description: 'Firebase Project ID (optional; defaults to FIREBASE_PROJECT_ID var or service account project_id)'
-        required: false
-        default: ''
-        type: string
-      deploy_targets:
-        description: 'Firebase targets to deploy (e.g. hosting,storage,firestore)'
-        required: true
-        default: 'hosting,storage,firestore'
-        type: choice
-        options:
-          - hosting,storage,firestore
-          - hosting,storage
-          - hosting
 
 jobs:
   build_and_deploy:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -37,63 +19,15 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install dependencies
-        run: npm install --no-audit --no-fund
-
-      - name: Build production bundle
-        run: npm run build
-
-      - name: Prepare Firebase credentials & resolve Project ID
-        id: resolve_firebase
-        env:
-          FIREBASE_SA_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-          INPUT_PROJECT_ID: ${{ github.event.inputs.project_id }}
-          VAR_PROJECT_ID: ${{ vars.FIREBASE_PROJECT_ID }}
-          INPUT_TARGETS: ${{ github.event.inputs.deploy_targets }}
+      - name: Install dependencies and build
         run: |
-          if [ -z "$FIREBASE_SA_JSON" ]; then
-            echo "::error::Missing repository secret FIREBASE_SERVICE_ACCOUNT."
-            exit 1
-          fi
-
-          node -e '
-            const fs = require("fs");
-            const path = require("path");
-            const saPath = path.join(process.env.RUNNER_TEMP, "firebase-sa.json");
-            let sa;
-            try {
-              sa = JSON.parse(process.env.FIREBASE_SA_JSON);
-            } catch (err) {
-              console.error("::error::FIREBASE_SERVICE_ACCOUNT is not valid JSON.");
-              process.exit(1);
-            }
-            fs.writeFileSync(saPath, JSON.stringify(sa), { mode: 0o600 });
-
-            // فرض استخدام مشروعك الصحيح مباشرة
-            const resolvedProjectId = "trusted-edu";
-
-            let targets = (process.env.INPUT_TARGETS || "").trim() || "hosting";
-
-            console.log("Resolved Firebase project ID:", resolvedProjectId);
-            console.log("Service account client:", sa.client_email);
-            console.log("Deploy targets:", targets);
-
-            const out = process.env.GITHUB_OUTPUT;
-            fs.appendFileSync(out, `project_id=${resolvedProjectId}\n`);
-            fs.appendFileSync(out, `targets=${targets}\n`);
-          '
+          npm ci
+          npm run build
 
       - name: Deploy to Firebase
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ runner.temp }}/firebase-sa.json
-          TARGET_PROJECT_ID: ${{ steps.resolve_firebase.outputs.project_id }}
-          TARGETS: ${{ steps.resolve_firebase.outputs.targets }}
-        run: |
-          npx --yes firebase-tools@latest deploy \
-            --only "$TARGETS" \
-            --project "$TARGET_PROJECT_ID" \
-            --non-interactive
-
-      - name: Cleanup Service Account credentials
-        if: always()
-        run: rm -f "$RUNNER_TEMP/firebase-sa.json"
+        uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: '${{ secrets.GITHUB_TOKEN }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          channelId: live
+          projectId: trusted-edu

@@ -1,0 +1,58 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Global Safety Net (Default Deny)
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    // Only verified authorized admin(s) may upload, overwrite, or delete media
+    function isAuthorizedAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'hawasbrothers@gmail.com'
+      );
+    }
+
+    function isValidFileName(fileName) {
+      return fileName is string &&
+        fileName.size() >= 1 &&
+        fileName.size() <= 160 &&
+        fileName.matches('^[a-zA-Z0-9._\\-]+$');
+    }
+
+    // Public Website Images (Hero, Articles, Avatars, Logo)
+    // Max size: 10 MB, MIME type: image/*
+    match /media/images/{fileName} {
+      allow read: if isValidFileName(fileName);
+      allow create, update: if isAuthorizedAdmin() &&
+        isValidFileName(fileName) &&
+        request.resource != null &&
+        request.resource.size > 0 &&
+        request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType.matches('image/.*');
+      allow delete: if isAuthorizedAdmin() && isValidFileName(fileName);
+    }
+
+    // Public Researcher Voice Testimonial Audio Clips
+    // Max size: 20 MB, MIME type: audio/*
+    match /media/audio/{fileName} {
+      allow read: if isValidFileName(fileName);
+      allow create, update: if isAuthorizedAdmin() &&
+        isValidFileName(fileName) &&
+        request.resource != null &&
+        request.resource.size > 0 &&
+        request.resource.size <= 20 * 1024 * 1024 &&
+        request.resource.contentType.matches('audio/.*');
+      allow delete: if isAuthorizedAdmin() && isValidFileName(fileName);
+    }
+  }
+}

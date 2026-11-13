@@ -7,6 +7,13 @@ import {
   buildServiceOrderMessage,
   formatWhatsAppUrl,
 } from '../utils/academicCalculations.ts';
+import { doc, setDoc } from 'firebase/firestore';
+import {
+  db,
+  OperationType,
+  handleFirestoreError,
+  buildFirestoreOrderPayload,
+} from '../firebase.ts';
 import { Send, CheckCircle2, AlertCircle, Clock, ShieldCheck, MessageCircle, Sparkles } from 'lucide-react';
 
 interface OrderFormSectionProps {
@@ -53,18 +60,30 @@ export const OrderFormSection: React.FC<OrderFormSectionProps> = ({ preselectedS
     setIsSubmitting(true);
 
     const referenceId = `TR-${Math.floor(1000 + Math.random() * 9000)}`;
+    const createdAt = new Date().toLocaleDateString('ar-EG', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
     const payload = {
       ...formData,
       id: referenceId,
-      createdAt: new Date().toLocaleDateString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
+      createdAt,
       status: 'جديد',
     };
+
+    try {
+      const firestoreOrder = buildFirestoreOrderPayload(referenceId, formData, createdAt);
+      await setDoc(doc(db, 'orders', referenceId), firestoreOrder);
+    } catch (error) {
+      try {
+        handleFirestoreError(error, OperationType.CREATE, `orders/${referenceId}`);
+      } catch {
+        // Continue to server API / local fallback if Firestore unavailable
+      }
+    }
 
     try {
       await fetch('/api/orders', {

@@ -1,0 +1,215 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global Safety Net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reusable Security Primitives
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        request.auth.token.email == 'hawasbrothers@gmail.com' ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidSiteContent(data) {
+      return data.keys().hasAll([
+        'brand',
+        'contact',
+        'hero',
+        'stats',
+        'servicesSection',
+        'services',
+        'workflowSection',
+        'workflowSteps',
+        'aboutSection',
+        'testimonialsSection',
+        'testimonials',
+        'orderFormSection',
+        'blogSection',
+        'articles',
+        'faqSection',
+        'faqs',
+        'contactSection',
+        'privacyPolicy',
+        'footer',
+        'updatedAt',
+        'updatedBy'
+      ]) && data.keys().hasOnly([
+        'brand',
+        'contact',
+        'hero',
+        'stats',
+        'servicesSection',
+        'services',
+        'workflowSection',
+        'workflowSteps',
+        'aboutSection',
+        'testimonialsSection',
+        'testimonials',
+        'orderFormSection',
+        'blogSection',
+        'articles',
+        'faqSection',
+        'faqs',
+        'contactSection',
+        'privacyPolicy',
+        'footer',
+        'updatedAt',
+        'updatedBy'
+      ]) &&
+      data.brand is map &&
+      data.contact is map &&
+      data.hero is map &&
+      data.stats is list && data.stats.size() <= 20 && (data.stats.size() == 0 || data.stats[0] is map) &&
+      data.servicesSection is map &&
+      data.services is list && data.services.size() <= 50 && (data.services.size() == 0 || data.services[0] is map) &&
+      data.workflowSection is map &&
+      data.workflowSteps is list && data.workflowSteps.size() <= 20 && (data.workflowSteps.size() == 0 || data.workflowSteps[0] is map) &&
+      data.aboutSection is map &&
+      data.testimonialsSection is map &&
+      data.testimonials is list && data.testimonials.size() <= 100 && (data.testimonials.size() == 0 || data.testimonials[0] is map) &&
+      data.orderFormSection is map &&
+      data.blogSection is map &&
+      data.articles is list && data.articles.size() <= 100 && (data.articles.size() == 0 || data.articles[0] is map) &&
+      data.faqSection is map &&
+      data.faqs is list && data.faqs.size() <= 100 && (data.faqs.size() == 0 || data.faqs[0] is map) &&
+      data.contactSection is map &&
+      data.privacyPolicy is map &&
+      data.footer is map &&
+      data.updatedAt is timestamp &&
+      data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128;
+    }
+
+    function isValidOrder(data, orderId) {
+      return data.keys().hasAll([
+        'id',
+        'studentName',
+        'phone',
+        'academicLevel',
+        'serviceId',
+        'createdAt',
+        'submittedAt',
+        'status'
+      ]) && data.keys().hasOnly([
+        'id',
+        'studentName',
+        'phone',
+        'email',
+        'academicLevel',
+        'serviceId',
+        'specialization',
+        'deadline',
+        'notes',
+        'countryCode',
+        'createdAt',
+        'submittedAt',
+        'status'
+      ]) &&
+      data.id is string && data.id == orderId && data.id.size() >= 3 && data.id.size() <= 64 && data.id.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.studentName is string && data.studentName.size() >= 2 && data.studentName.size() <= 150 &&
+      data.phone is string && data.phone.size() >= 8 && data.phone.size() <= 32 &&
+      data.academicLevel is string && data.academicLevel in ['bachelor', 'master', 'phd', 'general'] &&
+      data.serviceId is string && data.serviceId.size() >= 1 && data.serviceId.size() <= 200 &&
+      data.createdAt is string && data.createdAt.size() >= 1 && data.createdAt.size() <= 80 &&
+      data.submittedAt is timestamp &&
+      data.status is string && data.status in ['جديد', 'قيد التنفيذ', 'تم التسليم'] &&
+      (!('email' in data) || (data.email is string && data.email.size() <= 180)) &&
+      (!('specialization' in data) || (data.specialization is string && data.specialization.size() <= 200)) &&
+      (!('deadline' in data) || (data.deadline is string && data.deadline.size() <= 40)) &&
+      (!('notes' in data) || (data.notes is string && data.notes.size() <= 2000)) &&
+      (!('countryCode' in data) || (data.countryCode is string && data.countryCode.size() <= 16));
+    }
+
+    function isValidAdminUser(data, uid) {
+      return data.keys().hasAll(['uid', 'email', 'role', 'createdAt']) &&
+        data.keys().hasOnly(['uid', 'email', 'role', 'createdAt']) &&
+        data.uid is string && data.uid == uid && data.uid.size() >= 1 && data.uid.size() <= 128 &&
+        data.email is string && data.email.size() >= 3 && data.email.size() <= 180 &&
+        data.role is string && data.role == 'admin' &&
+        data.createdAt is timestamp;
+    }
+
+    // Public Website CMS Document (/siteContent/main)
+    match /siteContent/{docId} {
+      allow get: if docId == 'main';
+      allow list: if false;
+      allow create: if isAdmin() &&
+        isValidId(docId) &&
+        docId == 'main' &&
+        isValidSiteContent(incoming()) &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid;
+      allow update: if isAdmin() &&
+        isValidId(docId) &&
+        docId == 'main' &&
+        isValidSiteContent(incoming()) &&
+        incoming().updatedAt == request.time &&
+        incoming().updatedBy == request.auth.uid;
+      allow delete: if false;
+    }
+
+    // Consultation Orders (/orders/{orderId}) — PII protected
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isAdmin();
+      allow list: if isAdmin();
+      allow create: if isValidId(orderId) &&
+        isValidOrder(incoming(), orderId) &&
+        incoming().status == 'جديد' &&
+        incoming().submittedAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(orderId) &&
+        isValidOrder(incoming(), orderId) &&
+        incoming().id == existing().id &&
+        incoming().submittedAt == existing().submittedAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'notes', 'deadline', 'specialization']);
+      allow delete: if isValidId(orderId) && isAdmin();
+    }
+
+    // Admin Users (/admins/{uid})
+    match /admins/{uid} {
+      allow get: if isValidId(uid) && isSignedIn() && (request.auth.uid == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if isAdmin() &&
+        isValidId(uid) &&
+        isValidAdminUser(incoming(), uid) &&
+        incoming().createdAt == request.time;
+      allow update: if isAdmin() &&
+        isValidId(uid) &&
+        isValidAdminUser(incoming(), uid) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['email', 'role']);
+      allow delete: if isValidId(uid) && isAdmin();
+    }
+
+    // Boot-time connection check
+    match /test/{docId} {
+      allow get: if docId == 'connection';
+      allow list, create, update, delete: if false;
+    }
+  }
+}

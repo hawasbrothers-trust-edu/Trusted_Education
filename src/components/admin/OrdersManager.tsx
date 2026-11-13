@@ -1,4 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
+} from 'firebase/firestore';
+import { db, OperationType, handleFirestoreError } from '../../firebase.ts';
+import { useSiteContent } from '../../context/SiteContentContext.tsx';
 import type { StoredOrder } from '../../types/cms.ts';
 import { formatWhatsAppUrl } from '../../utils/academicCalculations.ts';
 import {
@@ -20,6 +31,7 @@ interface OrdersManagerProps {
 }
 
 export const OrdersManager: React.FC<OrdersManagerProps> = ({ authToken, brandArabicName }) => {
+  const { firebaseUser, isFirebaseAuthReady } = useSiteContent();
   const [orders, setOrders] = useState<StoredOrder[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -33,6 +45,7 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ authToken, brandAr
   };
 
   const fetchOrders = useCallback(async () => {
+    if (firebaseUser) return;
     setIsLoading(true);
     setError(null);
     try {
@@ -52,14 +65,71 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ authToken, brandAr
     } finally {
       setIsLoading(false);
     }
-  }, [authToken]);
+  }, [authToken, firebaseUser]);
 
   useEffect(() => {
+    if (!isFirebaseAuthReady) return;
+
+    if (firebaseUser) {
+      setIsLoading(true);
+      setError(null);
+      const ordersQuery = query(collection(db, 'orders'), orderBy('submittedAt', 'desc'));
+      const unsubscribe = onSnapshot(
+        ordersQuery,
+        (snapshot) => {
+          const loaded = snapshot.docs.map((docSnap) => {
+            const data = docSnap.data() as Partial<StoredOrder>;
+            return {
+              id: data.id || docSnap.id,
+              studentName: data.studentName || '',
+              phone: data.phone || '',
+              email: data.email || '',
+              academicLevel: data.academicLevel || 'master',
+              serviceId: data.serviceId || '',
+              specialization: data.specialization || '',
+              deadline: data.deadline || '',
+              notes: data.notes || '',
+              createdAt: data.createdAt || '',
+              status: data.status || 'جديد',
+            } as StoredOrder;
+          });
+          setOrders(loaded);
+          setIsLoading(false);
+        },
+        (err) => {
+          setIsLoading(false);
+          setError('تعذر تحميل الطلبات من Firestore.');
+          try {
+            handleFirestoreError(err, OperationType.LIST, 'orders');
+          } catch {
+            // logged via handleFirestoreError
+          }
+        }
+      );
+      return () => unsubscribe();
+    }
+
     fetchOrders();
-  }, [fetchOrders]);
+  }, [fetchOrders, firebaseUser, isFirebaseAuthReady]);
 
   const handleUpdateStatus = async (orderId: string, newStatus: string) => {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o)));
+
+    if (firebaseUser) {
+      const orderPath = `orders/${orderId}`;
+      try {
+        await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      } catch (err) {
+        setError('تعذر تحديث حالة الطلب في Firestore.');
+        try {
+          handleFirestoreError(err, OperationType.UPDATE, orderPath);
+        } catch {
+          // logged via handleFirestoreError
+        }
+      }
+      if (!authToken) return;
+    }
+
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: 'PATCH',
@@ -68,18 +138,38 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ authToken, brandAr
         body: JSON.stringify({ status: newStatus }),
       });
       const data = (await res.json()) as { orders?: StoredOrder[]; error?: string };
-      if (res.ok && data.orders) {
-        setOrders(data.orders);
-      } else if (data.error) {
-        setError(data.error);
+      if (!firebaseUser) {
+        if (res.ok && data.orders) {
+          setOrders(data.orders);
+        } else if (data.error) {
+          setError(data.error);
+        }
       }
     } catch {
-      setError('تعذر تحديث حالة الطلب على الخادم.');
+      if (!firebaseUser) {
+        setError('تعذر تحديث حالة الطلب على الخادم.');
+      }
     }
   };
 
   const handleDeleteOrder = async (orderId: string) => {
     setConfirmDeleteId(null);
+
+    if (firebaseUser) {
+      const orderPath = `orders/${orderId}`;
+      try {
+        await deleteDoc(doc(db, 'orders', orderId));
+      } catch (err) {
+        setError('تعذر حذف الطلب من Firestore.');
+        try {
+          handleFirestoreError(err, OperationType.DELETE, orderPath);
+        } catch {
+          // logged via handleFirestoreError
+        }
+      }
+      if (!authToken) return;
+    }
+
     try {
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         method: 'DELETE',
@@ -87,13 +177,17 @@ export const OrdersManager: React.FC<OrdersManagerProps> = ({ authToken, brandAr
         credentials: 'include',
       });
       const data = (await res.json()) as { orders?: StoredOrder[]; error?: string };
-      if (res.ok && data.orders) {
-        setOrders(data.orders);
-      } else if (data.error) {
-        setError(data.error);
+      if (!firebaseUser) {
+        if (res.ok && data.orders) {
+          setOrders(data.orders);
+        } else if (data.error) {
+          setError(data.error);
+        }
       }
     } catch {
-      setError('تعذر حذف الطلب من الخادم.');
+      if (!firebaseUser) {
+        setError('تعذر حذف الطلب من الخادم.');
+      }
     }
   };
 

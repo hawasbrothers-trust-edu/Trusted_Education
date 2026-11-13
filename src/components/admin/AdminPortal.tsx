@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, PRIMARY_ADMIN_EMAIL } from '../../firebase.ts';
 import { useSiteContent } from '../../context/SiteContentContext.tsx';
 import type { SiteContent } from '../../types/cms.ts';
 import { AdminLogin } from './AdminLogin.tsx';
@@ -57,7 +59,15 @@ const NAV_ITEMS: { id: AdminTab; label: string; icon: React.FC<{ className?: str
 ];
 
 export const AdminPortal: React.FC = () => {
-  const { content, navigate, saveContent, resetContent } = useSiteContent();
+  const {
+    content,
+    navigate,
+    saveContent,
+    resetContent,
+    firebaseUser,
+    isFirebaseAuthReady,
+    signOutFirebase,
+  } = useSiteContent();
   const [authToken, setAuthToken] = useState<string | null>(() => {
     try {
       return sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -68,6 +78,7 @@ export const AdminPortal: React.FC = () => {
   const [authEmail, setAuthEmail] = useState<string | null>(null);
   const [isCheckingAuth, setIsCheckingAuth] = useState<boolean>(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+  const [unauthorizedGoogleEmail, setUnauthorizedGoogleEmail] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<AdminTab>('orders');
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -98,16 +109,54 @@ export const AdminPortal: React.FC = () => {
     }
   }, [content, isDirty]);
 
-  // Verify existing session token or HttpOnly cookie
+  // Verify Firebase Auth admin role OR existing server session token/cookie
   useEffect(() => {
     let active = true;
     const checkSession = async () => {
+      if (!isFirebaseAuthReady) return;
+
+      if (firebaseUser) {
+        const emailLower = (firebaseUser.email || '').trim().toLowerCase();
+        let isAuthorizedAdmin =
+          firebaseUser.emailVerified && emailLower === PRIMARY_ADMIN_EMAIL;
+
+        if (!isAuthorizedAdmin && firebaseUser.emailVerified) {
+          try {
+            const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
+            if (adminSnap.exists()) {
+              isAuthorizedAdmin = true;
+            }
+          } catch {
+            // Not an admin
+          }
+        }
+
+        if (!active) return;
+        if (isAuthorizedAdmin) {
+          setUnauthorizedGoogleEmail(null);
+          setIsAuthenticated(true);
+          setAuthEmail(firebaseUser.email || emailLower);
+        } else {
+          setUnauthorizedGoogleEmail(firebaseUser.email || 'حساب غير مصرح');
+          setIsAuthenticated(false);
+        }
+        setIsCheckingAuth(false);
+        return;
+      }
+
+      setUnauthorizedGoogleEmail(null);
+
       try {
         const res = await fetch('/api/auth/session', {
           headers: authToken ? { Authorization: `Bearer ${authToken}` } : undefined,
           credentials: 'include',
           cache: 'no-store',
         });
+        const contentType = res.headers.get('content-type') || '';
+        if (!contentType.includes('application/json')) {
+          if (active) setIsAuthenticated(false);
+          return;
+        }
         const data = (await res.json()) as { authenticated?: boolean; email?: string };
         if (!active) return;
         if (data.authenticated) {
@@ -132,7 +181,7 @@ export const AdminPortal: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [authToken]);
+  }, [authToken, firebaseUser, isFirebaseAuthReady]);
 
   const handleLoginSuccess = (email: string, token: string) => {
     try {
@@ -146,6 +195,7 @@ export const AdminPortal: React.FC = () => {
   };
 
   const handleLogout = async () => {
+    await signOutFirebase();
     try {
       await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {
@@ -156,6 +206,7 @@ export const AdminPortal: React.FC = () => {
     } catch {
       // ignore
     }
+    setUnauthorizedGoogleEmail(null);
     setAuthToken(null);
     setAuthEmail(null);
     setIsAuthenticated(false);
@@ -251,11 +302,43 @@ export const AdminPortal: React.FC = () => {
     }
   };
 
-  if (isCheckingAuth) {
+  if (isCheckingAuth || !isFirebaseAuthReady) {
     return (
       <div className="min-h-screen bg-[#F0F5FA] flex flex-col items-center justify-center gap-3 text-slate-600">
         <Loader2 className="w-7 h-7 animate-spin text-[#2C5F8A]" />
         <span className="text-xs font-medium">جاري التحقق من جلسة الإدارة...</span>
+      </div>
+    );
+  }
+
+  if (unauthorizedGoogleEmail) {
+    return (
+      <div className="min-h-screen bg-[#F0F5FA] flex flex-col justify-center items-center p-4">
+        <div className="w-full max-w-md bg-white rounded-2xl border border-rose-200 shadow-sm p-7 text-center space-y-4">
+          <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+            <AlertCircle className="w-6 h-6" />
+          </div>
+          <h1 className="text-lg font-extrabold text-[#1A3A5C]">حساب Google غير مخوّل للإدارة</h1>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            الحساب المسجّل حالياً (<span dir="ltr" className="font-mono font-semibold">{unauthorizedGoogleEmail}</span>) لا يملك صلاحية الوصول إلى لوحة تحكم Trusted. يرجى تسجيل الدخول بحساب المسؤول المعتمد.
+          </p>
+          <div className="flex flex-col sm:flex-row gap-2 pt-2">
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg transition-colors"
+            >
+              تبديل الحساب / تسجيل الخروج
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/')}
+              className="flex-1 py-2.5 px-4 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+            >
+              العودة للموقع
+            </button>
+          </div>
+        </div>
       </div>
     );
   }

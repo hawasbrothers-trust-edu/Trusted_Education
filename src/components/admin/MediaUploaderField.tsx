@@ -24,6 +24,7 @@ export const MediaUploaderField: React.FC<MediaUploaderFieldProps> = ({
 }) => {
   const { uploadMedia } = useSiteContent();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -33,6 +34,7 @@ export const MediaUploaderField: React.FC<MediaUploaderFieldProps> = ({
 
     setError(null);
     setIsUploading(true);
+    setUploadProgress(0);
 
     // Detect audio duration client-side if audio
     if (kind === 'audio' && onDurationDetected) {
@@ -46,8 +48,11 @@ export const MediaUploaderField: React.FC<MediaUploaderFieldProps> = ({
       };
     }
 
-    const result = await uploadMedia(file, kind, authToken);
+    const result = await uploadMedia(file, kind, authToken, (pct) => {
+      setUploadProgress(pct);
+    });
     setIsUploading(false);
+    setUploadProgress(null);
 
     if (result.error) {
       setError(result.error);
@@ -89,7 +94,13 @@ export const MediaUploaderField: React.FC<MediaUploaderFieldProps> = ({
           className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-[#1A3A5C] bg-[#F0F5FA] hover:bg-[#E2ECF6] border border-[#2C5F8A]/20 rounded-lg transition-colors whitespace-nowrap shrink-0 disabled:opacity-60"
         >
           {isUploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
-          <span>{isUploading ? 'جاري الرفع...' : kind === 'image' ? 'رفع صورة من الجهاز' : 'رفع ملف صوتي'}</span>
+          <span>
+            {isUploading
+              ? `جاري الرفع${uploadProgress !== null ? ` (${uploadProgress}%)` : '...'}`
+              : kind === 'image'
+              ? 'رفع صورة من الجهاز'
+              : 'رفع ملف صوتي'}
+          </span>
         </button>
 
         {value && (

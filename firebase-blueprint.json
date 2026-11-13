@@ -1,0 +1,248 @@
+{
+  "entities": {
+    "SiteContentDoc": {
+      "title": "SiteContentDoc",
+      "description": "Public CMS configuration document for Trusted for Educational Services website content.",
+      "type": "object",
+      "properties": {
+        "brand": {
+          "type": "object",
+          "description": "Brand identity, logo URL, and header CTA text."
+        },
+        "contact": {
+          "type": "object",
+          "description": "Official contact phone, WhatsApp, email, address, and social links."
+        },
+        "hero": {
+          "type": "object",
+          "description": "Hero section headline, description, trust points, and banner image."
+        },
+        "stats": {
+          "type": "array",
+          "description": "Statistical highlights displayed in the stats bar."
+        },
+        "servicesSection": {
+          "type": "object",
+          "description": "Services section headings and custom CTA text."
+        },
+        "services": {
+          "type": "array",
+          "description": "List of academic consulting and research services."
+        },
+        "workflowSection": {
+          "type": "object",
+          "description": "Workflow section headings and CTA text."
+        },
+        "workflowSteps": {
+          "type": "array",
+          "description": "Ordered steps for the academic workflow."
+        },
+        "aboutSection": {
+          "type": "object",
+          "description": "Vision, mission, values, and advisory hall image."
+        },
+        "testimonialsSection": {
+          "type": "object",
+          "description": "Testimonials section headings."
+        },
+        "testimonials": {
+          "type": "array",
+          "description": "Researcher testimonials and audio feedback items."
+        },
+        "orderFormSection": {
+          "type": "object",
+          "description": "Order consultation form headings and button labels."
+        },
+        "blogSection": {
+          "type": "object",
+          "description": "Blog section headings."
+        },
+        "articles": {
+          "type": "array",
+          "description": "Published academic blog articles."
+        },
+        "faqSection": {
+          "type": "object",
+          "description": "FAQ section headings."
+        },
+        "faqs": {
+          "type": "array",
+          "description": "Frequently asked questions and answers."
+        },
+        "contactSection": {
+          "type": "object",
+          "description": "Contact section and map card text."
+        },
+        "privacyPolicy": {
+          "type": "object",
+          "description": "Academic confidentiality and privacy policy clauses."
+        },
+        "footer": {
+          "type": "object",
+          "description": "Footer description, specialties list, and copyright text."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp of the last CMS update."
+        },
+        "updatedBy": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "UID of the authenticated admin who updated the CMS."
+        }
+      },
+      "required": [
+        "brand",
+        "contact",
+        "hero",
+        "services",
+        "aboutSection",
+        "footer"
+      ]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Academic consultation request submitted by a student or researcher.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 64,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Unique reference ID for the order (e.g., TR-1234)."
+        },
+        "studentName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 150,
+          "description": "Full name of the student or researcher."
+        },
+        "phone": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 32,
+          "description": "Phone or WhatsApp number with country code."
+        },
+        "email": {
+          "type": "string",
+          "maxLength": 180,
+          "description": "Optional email address of the student."
+        },
+        "academicLevel": {
+          "type": "string",
+          "enum": ["bachelor", "master", "phd", "general"],
+          "description": "Academic degree level."
+        },
+        "serviceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Requested academic service title or identifier."
+        },
+        "specialization": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Academic specialization and university."
+        },
+        "deadline": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "Requested target delivery date."
+        },
+        "notes": {
+          "type": "string",
+          "maxLength": 2000,
+          "description": "Additional research details or supervisor requirements."
+        },
+        "createdAt": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "description": "Formatted creation timestamp string for display."
+        },
+        "submittedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp enforced on creation."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["جديد", "قيد التنفيذ", "تم التسليم"],
+          "description": "Current processing status of the order."
+        }
+      },
+      "required": [
+        "id",
+        "studentName",
+        "phone",
+        "academicLevel",
+        "serviceId",
+        "createdAt",
+        "submittedAt",
+        "status"
+      ]
+    },
+    "AdminUser": {
+      "title": "AdminUser",
+      "description": "Authorized administrator record mapped by Firebase Auth UID.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$",
+          "description": "Firebase Auth UID of the administrator."
+        },
+        "email": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 180,
+          "description": "Verified administrator email address."
+        },
+        "role": {
+          "type": "string",
+          "enum": ["admin"],
+          "description": "Assigned administrative role."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when admin entry was created."
+        }
+      },
+      "required": ["uid", "email", "role", "createdAt"]
+    },
+    "ConnectionCheck": {
+      "title": "ConnectionCheck",
+      "description": "Lightweight read-only connectivity verification document.",
+      "type": "object",
+      "properties": {
+        "ok": {
+          "type": "boolean",
+          "description": "Indicates service availability."
+        }
+      }
+    }
+  },
+  "firestore": {
+    "/siteContent/{docId}": {
+      "schema": { "$ref": "#/entities/SiteContentDoc" },
+      "description": "Stores the public CMS site content document at /siteContent/main."
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/Order" },
+      "description": "Stores consultation orders submitted by visitors. PII is strictly restricted to admins."
+    },
+    "/admins/{uid}": {
+      "schema": { "$ref": "#/entities/AdminUser" },
+      "description": "Stores authorized admin UIDs for role-based access control."
+    },
+    "/test/{docId}": {
+      "schema": { "$ref": "#/entities/ConnectionCheck" },
+      "description": "Read-only connection check path used during app boot."
+    }
+  }
+}

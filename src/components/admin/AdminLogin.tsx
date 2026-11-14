@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSiteContent } from '../../context/SiteContentContext.tsx';
 import { Lock, Mail, Eye, EyeOff, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { getAuth, signInWithEmailAndPassword } from 'firebase/auth';
 
 interface AdminLoginProps {
   onLoginSuccess: (email: string, token: string) => void;
@@ -36,36 +37,33 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
 
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      // الاتصال المباشر بـ Firebase Authentication
+      const auth = getAuth();
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const token = await userCredential.user.getIdToken();
 
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('application/json')) {
-        setError('هذه النسخة تعمل على استضافة Firebase الثابتة — يرجى الدخول عبر زر «تسجيل الدخول بحساب Google (Firebase)» أعلاه.');
-        setIsLoading(false);
-        return;
+      // نجاح تسجيل الدخول والانتقال للوحة التحكم
+      onLoginSuccess(userCredential.user.email || email.trim(), token);
+    } catch (err: any) {
+      // معالجة الأخطاء الشائعة وإظهارها بالعربية
+      switch (err?.code) {
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+          setError('البريد الإلكتروني أو كلمة السر غير صحيحة.');
+          break;
+        case 'auth/invalid-email':
+          setError('صيغة البريد الإلكتروني غير صحيحة.');
+          break;
+        case 'auth/too-many-requests':
+          setError('تم إيقاف المحاولات مؤقتاً لتكرار الخطأ. يرجى المحاولة بعد قليل.');
+          break;
+        case 'auth/network-request-failed':
+          setError('تعذر الاتصال بالخادم، يرجى التحقق من اتصال الإنترنت.');
+          break;
+        default:
+          setError('تعذر تسجيل الدخول. يرجى التأكد من البيانات أو تفعيل Email/Password في Firebase.');
       }
-
-      const data = (await res.json()) as {
-        authenticated?: boolean;
-        email?: string;
-        token?: string;
-        error?: string;
-      };
-
-      if (!res.ok || !data.authenticated || !data.token) {
-        setError(data.error || 'بيانات الدخول غير صحيحة.');
-        setIsLoading(false);
-        return;
-      }
-
-      onLoginSuccess(data.email || email.trim(), data.token);
-    } catch {
-      setError('تعذر الاتصال بخادم التحقق. يرجى التأكد من تشغيل الخادم والمحاولة مجدداً.');
     } finally {
       setIsLoading(false);
     }
@@ -192,7 +190,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 px-4 text-sm font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg shadow-xs transition-colors disabled:opacity-60"
+            className="w-full py-3 px-4 text-sm font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
           >
             {isLoading ? 'جاري التحقق والدخول...' : 'دخول إلى لوحة التحكم'}
           </button>
@@ -202,7 +200,7 @@ export const AdminLogin: React.FC<AdminLoginProps> = ({ onLoginSuccess }) => {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#1A3A5C] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-[#1A3A5C] transition-colors cursor-pointer"
           >
             <ArrowRight className="w-3.5 h-3.5" />
             <span>العودة إلى الموقع الرئيسي</span>

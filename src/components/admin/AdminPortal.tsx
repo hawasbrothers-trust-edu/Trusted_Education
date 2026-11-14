@@ -621,4 +621,4 @@ export const AdminPortal: React.FC = () => {
 
       {passwordModalOpen && (
         <div
-          className="fixed inset-0 z-50 bg-slate-900/50
+        className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"

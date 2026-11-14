@@ -46,7 +46,7 @@ type AdminTab =
 
 const SESSION_STORAGE_KEY = 'trusted_admin_token';
 
-// قائمة الإيميلات المصرح لها بإدارة الموقع
+// قائمة الإيميلات المصرح لها بإدارة الموقع بالكامل
 const ALLOWED_ADMIN_EMAILS = [
   'hawasbrothers@gmail.com',
   (PRIMARY_ADMIN_EMAIL || '').trim().toLowerCase(),
@@ -621,4 +621,113 @@ export const AdminPortal: React.FC = () => {
 
       {passwordModalOpen && (
         <div
-        className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+          className="fixed inset-0 z-50 bg-slate-900/50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="password-modal-title"
+        >
+          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
+              <div className="flex items-center gap-2">
+                <KeyRound className="w-4 h-4 text-[#2C5F8A]" />
+                <h2 id="password-modal-title" className="text-sm font-extrabold text-[#1A3A5C]">
+                  تغيير كلمة مرور لوحة التحكم
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPasswordModalOpen(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+                aria-label="إغلاق"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              {passwordStatus && (
+                <div
+                  role="alert"
+                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
+                    passwordStatus.type === 'success'
+                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                      : 'bg-rose-50 border-rose-200 text-rose-700'
+                  }`}
+                >
+                  {passwordStatus.type === 'success' ? (
+                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  )}
+                  <span>{passwordStatus.message}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  كلمة المرور الحالية
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  dir="ltr"
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  كلمة المرور الجديدة (8 أحرف على الأقل)
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  dir="ltr"
+                  minLength={8}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  تأكيد كلمة المرور الجديدة
+                </label>
+                <input
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  dir="ltr"
+                  minLength={8}
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
+                  required
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPasswordModalOpen(false)}
+                  className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg cursor-pointer"
+                >
+                  إغلاق
+                </button>
+                <button
+                  type="submit"
+                  disabled={isUpdatingPassword}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg disabled:opacity-60 cursor-pointer"
+                >
+                  {isUpdatingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                  <span>حفظ كلمة المرور</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};

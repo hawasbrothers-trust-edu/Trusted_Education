@@ -46,7 +46,7 @@ type AdminTab =
 
 const SESSION_STORAGE_KEY = 'trusted_admin_token';
 
-// قائمة الإيميلات المصرح لها بإدارة الموقع بالكامل
+// قائمة الإيميلات المصرح لها بإدارة الموقع
 const ALLOWED_ADMIN_EMAILS = [
   'hawasbrothers@gmail.com',
   (PRIMARY_ADMIN_EMAIL || '').trim().toLowerCase(),
@@ -108,14 +108,12 @@ export const AdminPortal: React.FC = () => {
   } | null>(null);
   const [isUpdatingPassword, setIsUpdatingPassword] = useState(false);
 
-  // Sync draft when server content loads and user hasn't edited yet
   useEffect(() => {
     if (!isDirty) {
       setDraft(content);
     }
   }, [content, isDirty]);
 
-  // Verify Firebase Auth admin role OR existing server session token/cookie
   useEffect(() => {
     let active = true;
     const checkSession = async () => {
@@ -123,8 +121,6 @@ export const AdminPortal: React.FC = () => {
 
       if (firebaseUser) {
         const emailLower = (firebaseUser.email || '').trim().toLowerCase();
-        
-        // التحقق مما إذا كان الإيميل ضمن قائمة المدراء المصرح لهم
         let isAuthorizedAdmin = ALLOWED_ADMIN_EMAILS.includes(emailLower);
 
         if (!isAuthorizedAdmin) {
@@ -529,3 +525,100 @@ export const AdminPortal: React.FC = () => {
                       setActiveTab(item.id);
                       setMobileNavOpen(false);
                     }}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold cursor-pointer ${
+                      active ? 'bg-[#1A3A5C] text-white' : 'text-slate-700 hover:bg-[#F0F5FA]'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+              {authToken && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPasswordStatus(null);
+                    setPasswordModalOpen(true);
+                    setMobileNavOpen(false);
+                  }}
+                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 mt-2 cursor-pointer"
+                >
+                  <KeyRound className="w-4 h-4" />
+                  <span>تغيير كلمة المرور</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 mt-2 cursor-pointer"
+              >
+                <LogOut className="w-4 h-4" />
+                <span>تسجيل الخروج</span>
+              </button>
+            </div>
+          )}
+        </header>
+
+        {/* Feedback Banner */}
+        {feedback && (
+          <div className="px-4 sm:px-6 lg:px-8 pt-5">
+            <div
+              role="status"
+              className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 ${
+                feedback.type === 'success'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
+                  : 'bg-rose-50 border-rose-200 text-rose-700'
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                {feedback.type === 'success' ? (
+                  <CheckCircle2 className="w-4 h-4 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                )}
+                <span>{feedback.message}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFeedback(null)}
+                className="p-1 hover:opacity-70 cursor-pointer"
+                aria-label="إغلاق التنبيه"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Active Tab Workspace */}
+        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto">
+          {activeTab === 'orders' && (
+            <OrdersManager authToken={authToken} brandArabicName={draft.brand.arabicName} />
+          )}
+          {activeTab === 'sections' && <SectionsEditor draft={draft} onChange={handleDraftChange} />}
+          {activeTab === 'services' && <ServicesEditor draft={draft} onChange={handleDraftChange} />}
+          {activeTab === 'about' && (
+            <AboutContactEditor draft={draft} onChange={handleDraftChange} mode="about" />
+          )}
+          {activeTab === 'contact' && (
+            <AboutContactEditor draft={draft} onChange={handleDraftChange} mode="contact" />
+          )}
+          {activeTab === 'media' && (
+            <MediaLibraryEditor draft={draft} onChange={handleDraftChange} authToken={authToken} />
+          )}
+          {activeTab === 'testimonials' && (
+            <TestimonialsEditor draft={draft} onChange={handleDraftChange} authToken={authToken} />
+          )}
+          {activeTab === 'blog' && (
+            <BlogFaqEditor draft={draft} onChange={handleDraftChange} mode="blog" authToken={authToken} />
+          )}
+          {activeTab === 'faq' && (
+            <BlogFaqEditor draft={draft} onChange={handleDraftChange} mode="faq" authToken={authToken} />
+          )}
+        </main>
+      </div>
+
+      {passwordModalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-slate-900/50

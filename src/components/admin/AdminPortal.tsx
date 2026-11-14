@@ -46,6 +46,12 @@ type AdminTab =
 
 const SESSION_STORAGE_KEY = 'trusted_admin_token';
 
+// قائمة الإيميلات المصرح لها بإدارة الموقع بالكامل
+const ALLOWED_ADMIN_EMAILS = [
+  'hawasbrothers@gmail.com',
+  (PRIMARY_ADMIN_EMAIL || '').trim().toLowerCase(),
+].filter(Boolean);
+
 const NAV_ITEMS: { id: AdminTab; label: string; icon: React.FC<{ className?: string }> }[] = [
   { id: 'orders', label: 'الطلبات والاستشارات', icon: LayoutDashboard },
   { id: 'sections', label: 'نصوص الواجهة والأقسام', icon: FileText },
@@ -117,10 +123,11 @@ export const AdminPortal: React.FC = () => {
 
       if (firebaseUser) {
         const emailLower = (firebaseUser.email || '').trim().toLowerCase();
-        let isAuthorizedAdmin =
-          firebaseUser.emailVerified && emailLower === PRIMARY_ADMIN_EMAIL;
+        
+        // التحقق مما إذا كان الإيميل ضمن قائمة المدراء المصرح لهم
+        let isAuthorizedAdmin = ALLOWED_ADMIN_EMAILS.includes(emailLower);
 
-        if (!isAuthorizedAdmin && firebaseUser.emailVerified) {
+        if (!isAuthorizedAdmin) {
           try {
             const adminSnap = await getDoc(doc(db, 'admins', firebaseUser.uid));
             if (adminSnap.exists()) {
@@ -326,14 +333,14 @@ export const AdminPortal: React.FC = () => {
             <button
               type="button"
               onClick={handleLogout}
-              className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg transition-colors"
+              className="flex-1 py-2.5 px-4 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg transition-colors cursor-pointer"
             >
               تبديل الحساب / تسجيل الخروج
             </button>
             <button
               type="button"
               onClick={() => navigate('/')}
-              className="flex-1 py-2.5 px-4 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="flex-1 py-2.5 px-4 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
             >
               العودة للموقع
             </button>
@@ -377,7 +384,7 @@ export const AdminPortal: React.FC = () => {
                 key={item.id}
                 type="button"
                 onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors text-right ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-colors text-right cursor-pointer ${
                   active
                     ? 'bg-[#1A3A5C] text-white'
                     : 'text-slate-700 hover:bg-[#F0F5FA] hover:text-[#1A3A5C]'
@@ -398,7 +405,7 @@ export const AdminPortal: React.FC = () => {
                 setPasswordStatus(null);
                 setPasswordModalOpen(true);
               }}
-              className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
             >
               <KeyRound className="w-3.5 h-3.5" />
               <span>تغيير كلمة المرور</span>
@@ -407,7 +414,7 @@ export const AdminPortal: React.FC = () => {
           <button
             type="button"
             onClick={() => navigate('/')}
-            className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#2C5F8A] bg-[#F0F5FA] hover:bg-[#E2ECF6] rounded-lg transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-[#2C5F8A] bg-[#F0F5FA] hover:bg-[#E2ECF6] rounded-lg transition-colors cursor-pointer"
           >
             <ExternalLink className="w-3.5 h-3.5" />
             <span>معاينة الموقع العام</span>
@@ -415,7 +422,7 @@ export const AdminPortal: React.FC = () => {
           <button
             type="button"
             onClick={handleLogout}
-            className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors"
+            className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>تسجيل الخروج</span>
@@ -432,7 +439,7 @@ export const AdminPortal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setMobileNavOpen(!mobileNavOpen)}
-                className="lg:hidden p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100"
+                className="lg:hidden p-2 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 cursor-pointer"
                 aria-label="قائمة لوحة التحكم"
               >
                 {mobileNavOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -457,14 +464,14 @@ export const AdminPortal: React.FC = () => {
                         type="button"
                         onClick={handleResetDefaults}
                         disabled={isResetting}
-                        className="px-2 py-1 text-[11px] font-bold bg-amber-600 text-white rounded-md hover:bg-amber-700"
+                        className="px-2 py-1 text-[11px] font-bold bg-amber-600 text-white rounded-md hover:bg-amber-700 cursor-pointer"
                       >
                         تأكيد
                       </button>
                       <button
                         type="button"
                         onClick={() => setConfirmReset(false)}
-                        className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900"
+                        className="px-2 py-1 text-[11px] font-medium text-slate-600 hover:text-slate-900 cursor-pointer"
                       >
                         إلغاء
                       </button>
@@ -474,7 +481,7 @@ export const AdminPortal: React.FC = () => {
                       type="button"
                       onClick={() => setConfirmReset(true)}
                       disabled={isResetting}
-                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors cursor-pointer"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span className="hidden sm:inline">استعادة الافتراضي</span>
@@ -485,7 +492,7 @@ export const AdminPortal: React.FC = () => {
                     type="button"
                     onClick={handleSaveAll}
                     disabled={isSaving}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg shadow-xs transition-colors disabled:opacity-60"
+                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg shadow-xs transition-colors disabled:opacity-60 cursor-pointer"
                   >
                     {isSaving ? (
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -500,7 +507,7 @@ export const AdminPortal: React.FC = () => {
               <button
                 type="button"
                 onClick={() => navigate('/')}
-                className="lg:hidden inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-[#2C5F8A] bg-[#F0F5FA] rounded-lg"
+                className="lg:hidden inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-[#2C5F8A] bg-[#F0F5FA] rounded-lg cursor-pointer"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
                 <span>الموقع</span>
@@ -522,209 +529,3 @@ export const AdminPortal: React.FC = () => {
                       setActiveTab(item.id);
                       setMobileNavOpen(false);
                     }}
-                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold ${
-                      active ? 'bg-[#1A3A5C] text-white' : 'text-slate-700 hover:bg-[#F0F5FA]'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-              {authToken && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPasswordStatus(null);
-                    setPasswordModalOpen(true);
-                    setMobileNavOpen(false);
-                  }}
-                  className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-slate-700 bg-slate-100 mt-2"
-                >
-                  <KeyRound className="w-4 h-4" />
-                  <span>تغيير كلمة المرور</span>
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-xs font-semibold text-rose-700 bg-rose-50 mt-2"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>تسجيل الخروج</span>
-              </button>
-            </div>
-          )}
-        </header>
-
-        {/* Feedback Banner */}
-        {feedback && (
-          <div className="px-4 sm:px-6 lg:px-8 pt-5">
-            <div
-              role="status"
-              className={`p-3.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-2 ${
-                feedback.type === 'success'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-700'
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {feedback.type === 'success' ? (
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                )}
-                <span>{feedback.message}</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setFeedback(null)}
-                className="p-1 hover:opacity-70"
-                aria-label="إغلاق التنبيه"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Active Tab Workspace */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-6xl w-full mx-auto">
-          {activeTab === 'orders' && (
-            <OrdersManager authToken={authToken} brandArabicName={draft.brand.arabicName} />
-          )}
-          {activeTab === 'sections' && <SectionsEditor draft={draft} onChange={handleDraftChange} />}
-          {activeTab === 'services' && <ServicesEditor draft={draft} onChange={handleDraftChange} />}
-          {activeTab === 'about' && (
-            <AboutContactEditor draft={draft} onChange={handleDraftChange} mode="about" />
-          )}
-          {activeTab === 'contact' && (
-            <AboutContactEditor draft={draft} onChange={handleDraftChange} mode="contact" />
-          )}
-          {activeTab === 'media' && (
-            <MediaLibraryEditor draft={draft} onChange={handleDraftChange} authToken={authToken} />
-          )}
-          {activeTab === 'testimonials' && (
-            <TestimonialsEditor draft={draft} onChange={handleDraftChange} authToken={authToken} />
-          )}
-          {activeTab === 'blog' && (
-            <BlogFaqEditor draft={draft} onChange={handleDraftChange} mode="blog" authToken={authToken} />
-          )}
-          {activeTab === 'faq' && (
-            <BlogFaqEditor draft={draft} onChange={handleDraftChange} mode="faq" authToken={authToken} />
-          )}
-        </main>
-      </div>
-
-      {passwordModalOpen && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="password-modal-title"
-        >
-          <div className="w-full max-w-md bg-white rounded-2xl border border-slate-200 shadow-xl p-6">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3 mb-4">
-              <div className="flex items-center gap-2">
-                <KeyRound className="w-4 h-4 text-[#2C5F8A]" />
-                <h2 id="password-modal-title" className="text-sm font-extrabold text-[#1A3A5C]">
-                  تغيير كلمة مرور لوحة التحكم
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPasswordModalOpen(false)}
-                className="p-1 text-slate-400 hover:text-slate-700 rounded-lg"
-                aria-label="إغلاق"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <form onSubmit={handleChangePassword} className="space-y-4">
-              {passwordStatus && (
-                <div
-                  role="alert"
-                  className={`p-3 rounded-xl border text-xs flex items-start gap-2 ${
-                    passwordStatus.type === 'success'
-                      ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border-rose-200 text-rose-700'
-                  }`}
-                >
-                  {passwordStatus.type === 'success' ? (
-                    <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
-                  ) : (
-                    <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-                  )}
-                  <span>{passwordStatus.message}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  كلمة المرور الحالية
-                </label>
-                <input
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  dir="ltr"
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  كلمة المرور الجديدة (8 أحرف على الأقل)
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  dir="ltr"
-                  minLength={8}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  تأكيد كلمة المرور الجديدة
-                </label>
-                <input
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  dir="ltr"
-                  minLength={8}
-                  className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 bg-[#F7F9FC] text-slate-900 focus:outline-hidden focus:border-[#2C5F8A] focus:bg-white text-left"
-                  required
-                />
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPasswordModalOpen(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg"
-                >
-                  إغلاق
-                </button>
-                <button
-                  type="submit"
-                  disabled={isUpdatingPassword}
-                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-[#2C5F8A] hover:bg-[#1A3A5C] rounded-lg disabled:opacity-60"
-                >
-                  {isUpdatingPassword && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-                  <span>حفظ كلمة المرور</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};

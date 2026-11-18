@@ -7,7 +7,7 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     shortName: 'Trusted',
     subtitle: 'للخدمات الطلابية والتعليمية',
     parentOrg: 'مؤسسة بدر حواس',
-    logoUrl: '/assets/aistudio/trusted-2_977ca46d.png',
+    logoUrl: '/assets/aistudio/trusted-web_6e3ba707.png',
     headerCtaText: 'طلب استشارة أكاديمية',
     headerWhatsappText: 'واتساب مباشر',
   },

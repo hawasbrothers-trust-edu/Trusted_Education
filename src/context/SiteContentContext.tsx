@@ -53,6 +53,23 @@ export const SiteContentProvider: React.FC<{ children: React.ReactNode }> = ({ c
   }, []);
 
   useEffect(() => {
+    const logoHref = content.brand.logoUrl?.trim();
+    if (!logoHref) return;
+    const rels = ['icon', 'shortcut icon', 'apple-touch-icon'];
+    rels.forEach((rel) => {
+      let link = document.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = rel;
+        document.head.appendChild(link);
+      }
+      if (link.getAttribute('href') !== logoHref) {
+        link.setAttribute('href', logoHref);
+      }
+    });
+  }, [content.brand.logoUrl]);
+
+  useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setFirebaseUser(user);
       setIsFirebaseAuthReady(true);

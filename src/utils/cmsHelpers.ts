@@ -96,8 +96,14 @@ export function mergeSiteContentWithDefaults(
 ): SiteContent {
   if (!saved || typeof saved !== 'object') return defaults;
 
+  const LEGACY_DEFAULT_LOGO = '/assets/aistudio/trusted-2_977ca46d.png';
+  const mergedBrand = { ...defaults.brand, ...(saved.brand || {}) };
+  if (!mergedBrand.logoUrl || mergedBrand.logoUrl === LEGACY_DEFAULT_LOGO) {
+    mergedBrand.logoUrl = defaults.brand.logoUrl;
+  }
+
   return {
-    brand: { ...defaults.brand, ...(saved.brand || {}) },
+    brand: mergedBrand,
     contact: {
       ...defaults.contact,
       ...(saved.contact || {}),
